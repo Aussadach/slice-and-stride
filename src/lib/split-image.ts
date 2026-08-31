@@ -15,48 +15,53 @@ export const defaultOptions: DetectOptions = {
   minGap: 6,
 };
 
-/**
- * Finds horizontal "empty" bands (rows that are visually uniform) in a tall
- * screenshot. Those bands are the borders between UI cards / sections.
- */
-export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
+/** Mean absolute horizontal luminance change per row ("busy-ness" of a row). */
+export function rowEnergies(data: ImageData): Float32Array {
   const { width, height } = data;
   const px = data.data;
-  const flat: boolean[] = new Array(height);
-
+  const out = new Float32Array(height);
   for (let y = 0; y < height; y++) {
-    let min = 255;
-    let max = 0;
-    let sumR = 0;
-    let sumG = 0;
-    let sumB = 0;
     const row = y * width * 4;
-    // sample every 2nd pixel for speed
+    let sum = 0;
     let n = 0;
-    for (let x = 0; x < width; x += 2) {
+    let prev = -1;
+    for (let x = 0; x < width; x += 1) {
       const i = row + x * 4;
-      const r = px[i];
-      const g = px[i + 1];
-      const b = px[i + 2];
-      const lum = (r * 299 + g * 587 + b * 114) / 1000;
-      if (lum < min) min = lum;
-      if (lum > max) max = lum;
-      sumR += r;
-      sumG += g;
-      sumB += b;
-      n++;
+      const lum = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000;
+      if (prev >= 0) {
+        sum += Math.abs(lum - prev);
+        n++;
+      }
+      prev = lum;
     }
-    const avgSpread =
-      Math.abs(sumR / n - sumG / n) +
-      Math.abs(sumG / n - sumB / n) +
-      Math.abs(sumR / n - sumB / n);
-    flat[y] = max - min <= opts.tolerance && avgSpread <= opts.tolerance * 3;
+    out[y] = n ? sum / n : 0;
   }
+  return out;
+}
+
+function percentile(sorted: Float32Array, p: number) {
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+  return sorted[i];
+}
+
+/**
+ * Finds horizontal "empty" bands (rows with almost no horizontal detail) in a
+ * tall screenshot. Those bands are the borders between UI cards / sections.
+ * The threshold is relative to the image, so JPEG noise and dark themes work.
+ */
+export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
+  const height = data.height;
+  const energy = rowEnergies(data);
+  const sorted = Float32Array.from(energy).sort();
+  const low = percentile(sorted, 0.05);
+  const high = percentile(sorted, 0.9);
+  const threshold = low + (Math.max(0.5, high - low) * opts.tolerance) / 100;
 
   const gaps: Gap[] = [];
   let start = -1;
   for (let y = 0; y < height; y++) {
-    if (flat[y]) {
+    const quiet = energy[y] <= threshold;
+    if (quiet) {
       if (start === -1) start = y;
     } else if (start !== -1) {
       if (y - start >= opts.minGap) gaps.push({ start, end: y - 1 });
@@ -68,6 +73,7 @@ export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
   }
   return gaps;
 }
+
 
 /** Turns detected gaps into cut positions, respecting a minimum section height. */
 export function gapsToCuts(gaps: Gap[], height: number, minSection: number): number[] {
