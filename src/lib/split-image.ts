@@ -45,9 +45,52 @@ function percentile(sorted: Float32Array, p: number) {
 }
 
 /**
- * Finds horizontal "empty" bands (rows with almost no horizontal detail) in a
- * tall screenshot. Those bands are the borders between UI cards / sections.
- * The threshold is relative to the image, so JPEG noise and dark themes work.
+ * Page background color, estimated from the outer left/right margins where no
+ * card is ever drawn.
+ */
+function backgroundColor(data: ImageData): [number, number, number] {
+  const { width, height, data: px } = data;
+  const xs = [1, 2, width - 3, width - 2].filter((x) => x >= 0 && x < width);
+  const rs: number[] = [];
+  const gs: number[] = [];
+  const bs: number[] = [];
+  for (let y = 0; y < height; y += Math.max(1, Math.floor(height / 400))) {
+    for (const x of xs) {
+      const i = (y * width + x) * 4;
+      rs.push(px[i]);
+      gs.push(px[i + 1]);
+      bs.push(px[i + 2]);
+    }
+  }
+  const med = (a: number[]) => a.sort((p, q) => p - q)[Math.floor(a.length / 2)] ?? 0;
+  return [med(rs), med(gs), med(bs)];
+}
+
+/** Average color of the middle band of a row (i.e. inside the cards). */
+function rowCenterColor(data: ImageData, y: number): [number, number, number] {
+  const { width, data: px } = data;
+  const from = Math.floor(width * 0.25);
+  const to = Math.ceil(width * 0.75);
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (let x = from; x < to; x++) {
+    const i = (y * width + x) * 4;
+    r += px[i];
+    g += px[i + 1];
+    b += px[i + 2];
+    n++;
+  }
+  return [r / n, g / n, b / n];
+}
+
+/**
+ * Finds the horizontal bands that separate UI cards / sections: rows with
+ * almost no horizontal detail whose color matches the page background.
+ * Thresholds are relative to the image, so JPEG noise, light and dark themes
+ * all work. Falls back to detail-only detection when the background heuristic
+ * finds nothing (e.g. cards without margins).
  */
 export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
   const height = data.height;
@@ -56,23 +99,38 @@ export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
   const low = percentile(sorted, 0.05);
   const high = percentile(sorted, 0.9);
   const threshold = low + (Math.max(0.5, high - low) * opts.tolerance) / 100;
+  const bg = backgroundColor(data);
+  const colorTol = 8 + opts.tolerance * 0.8;
 
-  const gaps: Gap[] = [];
-  let start = -1;
-  for (let y = 0; y < height; y++) {
-    const quiet = energy[y] <= threshold;
-    if (quiet) {
-      if (start === -1) start = y;
-    } else if (start !== -1) {
-      if (y - start >= opts.minGap) gaps.push({ start, end: y - 1 });
-      start = -1;
+  const collect = (useBg: boolean) => {
+    const gaps: Gap[] = [];
+    let start = -1;
+    for (let y = 0; y < height; y++) {
+      let quiet = energy[y] <= threshold;
+      if (quiet && useBg) {
+        const [r, g, b] = rowCenterColor(data, y);
+        quiet =
+          Math.abs(r - bg[0]) <= colorTol &&
+          Math.abs(g - bg[1]) <= colorTol &&
+          Math.abs(b - bg[2]) <= colorTol;
+      }
+      if (quiet) {
+        if (start === -1) start = y;
+      } else if (start !== -1) {
+        if (y - start >= opts.minGap) gaps.push({ start, end: y - 1 });
+        start = -1;
+      }
     }
-  }
-  if (start !== -1 && height - start >= opts.minGap) {
-    gaps.push({ start, end: height - 1 });
-  }
-  return gaps;
+    if (start !== -1 && height - start >= opts.minGap) {
+      gaps.push({ start, end: height - 1 });
+    }
+    return gaps;
+  };
+
+  const withBg = collect(true);
+  return withBg.length >= 2 ? withBg : collect(false);
 }
+
 
 
 /** Turns detected gaps into cut positions, respecting a minimum section height. */
