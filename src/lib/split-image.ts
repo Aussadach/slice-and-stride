@@ -27,7 +27,7 @@ export function rowEnergies(data: ImageData): Float32Array {
     let prev = -1;
     for (let x = 0; x < width; x += 1) {
       const i = row + x * 4;
-      const lum = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000;
+      const lum = (px[i]! * 299 + px[i + 1]! * 587 + px[i + 2]! * 114) / 1000;
       if (prev >= 0) {
         sum += Math.abs(lum - prev);
         n++;
@@ -41,7 +41,7 @@ export function rowEnergies(data: ImageData): Float32Array {
 
 function percentile(sorted: Float32Array, p: number) {
   const i = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
-  return sorted[i];
+  return sorted[i]!;
 }
 
 /**
@@ -57,9 +57,9 @@ function backgroundColor(data: ImageData): [number, number, number] {
   for (let y = 0; y < height; y += Math.max(1, Math.floor(height / 400))) {
     for (const x of xs) {
       const i = (y * width + x) * 4;
-      rs.push(px[i]);
-      gs.push(px[i + 1]);
-      bs.push(px[i + 2]);
+      rs.push(px[i]!);
+      gs.push(px[i + 1]!);
+      bs.push(px[i + 2]!);
     }
   }
   const med = (a: number[]) => a.sort((p, q) => p - q)[Math.floor(a.length / 2)] ?? 0;
@@ -77,9 +77,9 @@ function rowCenterColor(data: ImageData, y: number): [number, number, number] {
   let n = 0;
   for (let x = from; x < to; x++) {
     const i = (y * width + x) * 4;
-    r += px[i];
-    g += px[i + 1];
-    b += px[i + 2];
+    r += px[i]!;
+    g += px[i + 1]!;
+    b += px[i + 2]!;
     n++;
   }
   return [r / n, g / n, b / n];
@@ -96,8 +96,8 @@ export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
   const height = data.height;
   const energy = rowEnergies(data);
   const sorted = Float32Array.from(energy).sort();
-  const low = percentile(sorted, 0.05);
-  const high = percentile(sorted, 0.9);
+  const low: number = percentile(sorted, 0.05);
+  const high: number = percentile(sorted, 0.9);
   const threshold = low + (Math.max(0.5, high - low) * opts.tolerance) / 100;
   const bg = backgroundColor(data);
   const colorTol = 8 + opts.tolerance * 0.8;
@@ -160,8 +160,8 @@ export async function renderSlices(
   const bounds = [0, ...cuts, img.naturalHeight];
   const out: Slice[] = [];
   for (let i = 0; i < bounds.length - 1; i++) {
-    const top = Math.max(0, bounds[i] - (i === 0 ? 0 : padding));
-    const bottom = Math.min(img.naturalHeight, bounds[i + 1] + padding);
+    const top = Math.max(0, bounds[i]! - (i === 0 ? 0 : padding));
+    const bottom = Math.min(img.naturalHeight, bounds[i + 1]! + padding);
     const h = bottom - top;
     if (h <= 0) continue;
     const canvas = document.createElement("canvas");
@@ -176,7 +176,7 @@ export async function renderSlices(
 }
 
 export function dataUrlToBlob(url: string): Blob {
-  const [head, b64] = url.split(",");
+  const [head, b64] = url.split(",") as [string, string];
   const mime = head.match(/:(.*?);/)?.[1] ?? "image/png";
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);

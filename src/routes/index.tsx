@@ -84,7 +84,7 @@ function SplitFit() {
     const bounds = [0, ...cuts, img.naturalHeight];
     return bounds.slice(0, -1).map((top, i) => ({
       top,
-      height: bounds[i + 1] - top,
+      height: bounds[i + 1]! - top,
     }));
   }, [cuts, img]);
 
@@ -334,7 +334,7 @@ function Control({
         min={min}
         max={max}
         step={step}
-        onValueChange={(v) => onChange(v[0])}
+        onValueChange={(v) => onChange(v[0] ?? min)}
       />
       {hint && <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>}
     </div>
