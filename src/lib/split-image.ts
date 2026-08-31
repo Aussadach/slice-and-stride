@@ -106,7 +106,7 @@ export function detectGaps(data: ImageData, opts: DetectOptions): Gap[] {
     const gaps: Gap[] = [];
     let start = -1;
     for (let y = 0; y < height; y++) {
-      let quiet = energy[y] <= threshold;
+      let quiet = energy[y]! <= threshold;
       if (quiet && useBg) {
         const [r, g, b] = rowCenterColor(data, y);
         quiet =
