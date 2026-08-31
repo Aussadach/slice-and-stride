@@ -11,8 +11,8 @@ export type DetectOptions = {
 
 export const defaultOptions: DetectOptions = {
   tolerance: 10,
-  minSection: 120,
-  minGap: 6,
+  minSection: 100,
+  minGap: 4,
 };
 
 /** Mean absolute horizontal luminance change per row ("busy-ness" of a row). */

@@ -62,6 +62,9 @@ function SplitFit() {
       const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
       ctx.drawImage(image, 0, 0);
       setImageData(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      setMinSection(
+        Math.min(400, Math.max(50, Math.round(image.naturalHeight * 0.02))),
+      );
       setImg(image);
       setSrc(url);
       setSlices([]);
