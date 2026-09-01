@@ -24,3 +24,15 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## GitHub Pages
+
+The `codex/github-pages` branch builds a client-only TanStack Start shell and
+deploys it to GitHub Pages. The GitHub Pages build uses the repository base path
+`/slice-and-stride/`; normal Lovable builds continue to use `/`.
+
+To enable the deployment, open **Settings → Pages** in GitHub and set
+**Build and deployment → Source** to **GitHub Actions**. A push to the
+`codex/github-pages` branch will then publish:
+
+<https://aussadach.github.io/slice-and-stride/>
