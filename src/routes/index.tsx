@@ -90,6 +90,19 @@ function SplitFit() {
     }));
   }, [cuts, img]);
 
+  const pieces = useMemo(
+    () =>
+      img
+        ? slices.map((s) => ({
+            id: String(s.index),
+            url: s.url,
+            width: img.naturalWidth,
+            height: s.height,
+          }))
+        : [],
+    [slices, img],
+  );
+
   const addCutAt = (clientY: number) => {
     if (!img || !previewRef.current) return;
     const rect = previewRef.current.getBoundingClientRect();
