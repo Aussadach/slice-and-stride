@@ -112,6 +112,18 @@ export const templates: Template[] = [
     })),
   },
   {
+    id: "custom-grid",
+    name: "Custom grid",
+    cols: 4,
+    rows: 4,
+    cells: Array.from({ length: 16 }, (_, i) => ({
+      x: i % 4,
+      y: Math.floor(i / 4),
+      w: 1,
+      h: 1,
+    })),
+  },
+  {
     id: "stack",
     name: "Stack (แนวยาว)",
     cols: 1,
@@ -333,6 +345,8 @@ export async function renderCollage(
   canvas.width = Math.round(width);
   canvas.height = Math.round(width);
   const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 

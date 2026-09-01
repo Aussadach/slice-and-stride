@@ -4,7 +4,9 @@ import {
   FileDown,
   ImageDown,
   LayoutTemplate,
+  Minus,
   Minimize2,
+  Plus,
   Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,9 +55,26 @@ export function CollageStudio({
   fileName: string;
 }) {
   const [templateId, setTemplateId] = useState(templates[0]!.id);
+  const [customCols, setCustomCols] = useState(4);
+  const [customRows, setCustomRows] = useState(4);
   const template = useMemo(
-    () => templates.find((t) => t.id === templateId) ?? templates[0]!,
-    [templateId],
+    () => {
+      const selectedTemplate = templates.find((t) => t.id === templateId) ?? templates[0]!;
+      if (selectedTemplate.id !== "custom-grid") return selectedTemplate;
+      return {
+        ...selectedTemplate,
+        name: `Custom ${customCols}×${customRows}`,
+        cols: customCols,
+        rows: customRows,
+        cells: Array.from({ length: customCols * customRows }, (_, i) => ({
+          x: i % customCols,
+          y: Math.floor(i / customCols),
+          w: 1,
+          h: 1,
+        })),
+      };
+    },
+    [customCols, customRows, templateId],
   );
   const [assignment, setAssignment] = useState<(string | null)[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -145,7 +164,7 @@ export function CollageStudio({
       unit: "px",
       format: [canvas.width, canvas.height],
     });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, canvas.width, canvas.height);
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width, canvas.height);
     pdf.save(`${fileName}-collage.pdf`);
   };
 
@@ -237,6 +256,69 @@ export function CollageStudio({
                 </button>
               ))}
             </div>
+            {templateId === "custom-grid" && (
+              <div className="space-y-3 rounded-lg border border-border bg-black/20 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs">คอลัมน์ (แนวนอน)</Label>
+                    <p className="font-mono text-sm text-primary">{customCols}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      disabled={customCols <= 1}
+                      onClick={() => setCustomCols((value) => Math.max(1, value - 1))}
+                      aria-label="ลดจำนวนคอลัมน์"
+                    >
+                      <Minus />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      disabled={customCols >= 12}
+                      onClick={() => setCustomCols((value) => Math.min(12, value + 1))}
+                      aria-label="เพิ่มจำนวนคอลัมน์"
+                    >
+                      <Plus />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs">แถว (แนวตั้ง)</Label>
+                    <p className="font-mono text-sm text-primary">{customRows}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      disabled={customRows <= 1}
+                      onClick={() => setCustomRows((value) => Math.max(1, value - 1))}
+                      aria-label="ลดจำนวนแถว"
+                    >
+                      <Minus />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      disabled={customRows >= 12}
+                      onClick={() => setCustomRows((value) => Math.min(12, value + 1))}
+                      aria-label="เพิ่มจำนวนแถว"
+                    >
+                      <Plus />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  รองรับ {customCols * customRows} รูป — ปรับให้ใกล้จำนวนรูปเพื่อลดช่องว่างที่ไม่ได้ใช้
+                </p>
+              </div>
+            )}
             <Button variant="secondary" className="w-full" onClick={reset}>
               <Shuffle /> จัดวางอัตโนมัติใหม่
             </Button>
