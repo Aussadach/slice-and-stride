@@ -14,6 +14,8 @@ import {
   renderSlices,
   type Slice,
 } from "@/lib/split-image";
+import { CollageStudio } from "@/components/CollageStudio";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -87,6 +89,19 @@ function SplitFit() {
       height: bounds[i + 1]! - top,
     }));
   }, [cuts, img]);
+
+  const pieces = useMemo(
+    () =>
+      img
+        ? slices.map((s) => ({
+            id: String(s.index),
+            url: s.url,
+            width: img.naturalWidth,
+            height: s.height,
+          }))
+        : [],
+    [slices, img],
+  );
 
   const addCutAt = (clientY: number) => {
     if (!img || !previewRef.current) return;
@@ -302,7 +317,13 @@ function SplitFit() {
           </div>
         </section>
       )}
+
+      {pieces.length > 1 && (
+        <CollageStudio fileName={fileName} pieces={pieces} />
+      )}
+
     </main>
+
   );
 }
 
