@@ -160,15 +160,93 @@ export type RenderOptions = {
   padding: number;
   background: string;
   radius: number;
+  layoutMode: LayoutMode;
 };
+
+export type LayoutMode = "adaptive" | "contain";
+
+export type LayoutRect = Cell & { index: number };
 
 export const defaultRenderOptions: RenderOptions = {
   width: 1600,
   gap: 12,
   padding: 16,
-  background: "#0b0f0c",
+  background: "#000000",
   radius: 10,
+  layoutMode: "adaptive",
 };
+
+/**
+ * Calculates the cell rectangles used by both the preview and the exporter.
+ * Adaptive mode keeps the template's columns and vertical ordering, but lets
+ * each image determine its own height. Cells below it are pushed down like a
+ * masonry layout, so no image overlaps or needs to be cropped.
+ */
+export function calculateCollageLayout(
+  template: Template,
+  assignment: (string | null)[],
+  pieces: Piece[],
+  opts: Pick<RenderOptions, "width" | "gap" | "padding" | "layoutMode">,
+): LayoutRect[] {
+  const { width, gap, padding, layoutMode } = opts;
+  const inner = width - padding * 2;
+  const byId = new Map(pieces.map((piece) => [piece.id, piece]));
+
+  if (layoutMode === "contain") {
+    const unitX = (inner - gap * (template.cols - 1)) / template.cols;
+    const unitY = (inner - gap * (template.rows - 1)) / template.rows;
+    return template.cells.map((cell, index) => ({
+      index,
+      x: padding + cell.x * (unitX + gap),
+      y: padding + cell.y * (unitY + gap),
+      w: cell.w * unitX + (cell.w - 1) * gap,
+      h: cell.h * unitY + (cell.h - 1) * gap,
+    }));
+  }
+
+  const unit = (inner - gap * (template.cols - 1)) / template.cols;
+  const placed: LayoutRect[] = [];
+  const order = template.cells
+    .map((cell, index) => ({ cell, index }))
+    .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x);
+
+  for (const { cell, index } of order) {
+    const w = cell.w * unit + (cell.w - 1) * gap;
+    const pieceId = assignment[index];
+    const piece = pieceId ? byId.get(pieceId) : undefined;
+    const aspect =
+      piece && piece.width > 0 && piece.height > 0
+        ? piece.width / piece.height
+        : cell.w / cell.h;
+    const predecessors = placed.filter((rect) => {
+      const source = template.cells[rect.index]!;
+      const isAbove = source.y + source.h <= cell.y;
+      const overlapsHorizontally =
+        source.x < cell.x + cell.w && source.x + source.w > cell.x;
+      return isAbove && overlapsHorizontally;
+    });
+    const y = predecessors.reduce(
+      (bottom, rect) => Math.max(bottom, rect.y + rect.h + gap),
+      0,
+    );
+    placed.push({ index, x: cell.x * (unit + gap), y, w, h: w / aspect });
+  }
+
+  const contentHeight = Math.max(...placed.map((rect) => rect.y + rect.h), 0);
+  const scale = contentHeight > 0 ? Math.min(1, inner / contentHeight) : 1;
+  const offsetX = padding + (inner - inner * scale) / 2;
+  const offsetY = padding + (inner - contentHeight * scale) / 2;
+
+  return placed
+    .map((rect) => ({
+      ...rect,
+      x: offsetX + rect.x * scale,
+      y: offsetY + rect.y * scale,
+      w: rect.w * scale,
+      h: rect.h * scale,
+    }))
+    .sort((a, b) => a.index - b.index);
+}
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -204,15 +282,12 @@ export async function renderCollage(
   pieces: Piece[],
   opts: RenderOptions = defaultRenderOptions,
 ): Promise<HTMLCanvasElement> {
-  const { width, gap, padding, background, radius } = opts;
-  const inner = width - padding * 2;
-  const unit = (inner - gap * (template.cols - 1)) / template.cols;
-  const height =
-    padding * 2 + unit * template.rows + gap * (template.rows - 1);
+  const { width, background, radius } = opts;
+  const layout = calculateCollageLayout(template, assignment, pieces, opts);
 
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width);
-  canvas.height = Math.round(height);
+  canvas.height = Math.round(width);
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -220,26 +295,24 @@ export async function renderCollage(
   const byId = new Map(pieces.map((p) => [p.id, p]));
 
   for (let i = 0; i < template.cells.length; i++) {
-    const cell = template.cells[i]!;
+    const rect = layout[i]!;
     const id = assignment[i];
-    const x = padding + cell.x * (unit + gap);
-    const y = padding + cell.y * (unit + gap);
-    const w = cell.w * unit + (cell.w - 1) * gap;
-    const h = cell.h * unit + (cell.h - 1) * gap;
+    const { x, y, w, h } = rect;
 
     ctx.save();
     roundRect(ctx, x, y, w, h, radius);
     ctx.clip();
-    ctx.fillStyle = "rgba(255,255,255,0.04)";
-    ctx.fillRect(x, y, w, h);
     const piece = id ? byId.get(id) : undefined;
+    ctx.fillStyle = piece ? "#000000" : "rgba(255,255,255,0.04)";
+    ctx.fillRect(x, y, w, h);
     if (piece) {
       const img = await loadImage(piece.url);
-      // cover fit, anchored to the top so headings stay visible
-      const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      // Adaptive cells already match the image ratio. Fixed cells use contain
+      // so the complete source image is always visible in either mode.
+      const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
       const dw = img.naturalWidth * scale;
       const dh = img.naturalHeight * scale;
-      ctx.drawImage(img, x + (w - dw) / 2, y, dw, dh);
+      ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     }
     ctx.restore();
   }

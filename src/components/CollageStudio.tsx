@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileDown, ImageDown, LayoutTemplate, Shuffle } from "lucide-react";
+import {
+  Expand,
+  FileDown,
+  ImageDown,
+  LayoutTemplate,
+  Minimize2,
+  Shuffle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import {
   autoAssign,
+  calculateCollageLayout,
   defaultRenderOptions,
   renderCollage,
   templates,
   type Piece,
+  type LayoutMode,
   type Template,
 } from "@/lib/collage";
 
@@ -51,6 +61,7 @@ export function CollageStudio({
   const [selected, setSelected] = useState<number | null>(null);
   const [gap, setGap] = useState(defaultRenderOptions.gap);
   const [width, setWidth] = useState(defaultRenderOptions.width);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultRenderOptions.layoutMode);
   const [busy, setBusy] = useState(false);
 
   const reset = useCallback(() => {
@@ -63,6 +74,16 @@ export function CollageStudio({
   const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces]);
   const used = new Set(assignment.filter(Boolean) as string[]);
   const unused = pieces.filter((p) => !used.has(p.id));
+  const previewLayout = useMemo(
+    () =>
+      calculateCollageLayout(template, assignment, pieces, {
+        width,
+        gap,
+        padding: defaultRenderOptions.padding,
+        layoutMode,
+      }),
+    [assignment, gap, layoutMode, pieces, template, width],
+  );
 
   const clickCell = (i: number) => {
     if (selected === null) {
@@ -100,6 +121,7 @@ export function CollageStudio({
       return await renderCollage(template, assignment, pieces, {
         ...defaultRenderOptions,
         gap,
+        layoutMode,
         width,
       });
     } finally {
@@ -139,27 +161,22 @@ export function CollageStudio({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card className="p-4">
-          <div
-            className="mx-auto grid gap-1.5"
-            style={{
-              gridTemplateColumns: `repeat(${template.cols}, minmax(0,1fr))`,
-              gridTemplateRows: `repeat(${template.rows}, 1fr)`,
-              aspectRatio: `${template.cols} / ${template.rows}`,
-              maxWidth: 640,
-            }}
-          >
-            {template.cells.map((c, i) => {
+          <div className="relative mx-auto aspect-square w-full max-w-[640px] overflow-hidden rounded-lg bg-black">
+            {template.cells.map((_, i) => {
               const piece = assignment[i] ? byId.get(assignment[i]!) : undefined;
+              const rect = previewLayout[i]!;
               return (
                 <button
                   key={i}
                   onClick={() => clickCell(i)}
-                  className={`relative overflow-hidden rounded-md border bg-muted/40 transition-colors ${
+                  className={`absolute flex items-center justify-center overflow-hidden rounded-md border bg-black transition-colors ${
                     selected === i ? "border-primary ring-2 ring-primary" : "border-border"
                   }`}
                   style={{
-                    gridColumn: `${c.x + 1} / span ${c.w}`,
-                    gridRow: `${c.y + 1} / span ${c.h}`,
+                    left: `${(rect.x / width) * 100}%`,
+                    top: `${(rect.y / width) * 100}%`,
+                    width: `${(rect.w / width) * 100}%`,
+                    height: `${(rect.h / width) * 100}%`,
                   }}
                   aria-label={`ช่องที่ ${i + 1}`}
                 >
@@ -167,7 +184,7 @@ export function CollageStudio({
                     <img
                       src={piece.url}
                       alt={`ช่องที่ ${i + 1}`}
-                      className="absolute inset-0 size-full object-cover object-top"
+                      className="absolute inset-0 size-full object-contain"
                     />
                   ) : (
                     <span className="text-xs text-muted-foreground">ว่าง</span>
@@ -226,6 +243,50 @@ export function CollageStudio({
           </Card>
 
           <Card className="space-y-4 p-5">
+            <div className="space-y-3">
+              <Label className="text-xs">วิธีรักษารูปให้ครบ</Label>
+              <RadioGroup
+                value={layoutMode}
+                onValueChange={(value) => setLayoutMode(value as LayoutMode)}
+                className="gap-2"
+              >
+                <Label
+                  htmlFor="layout-adaptive"
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
+                    layoutMode === "adaptive" ? "border-primary bg-primary/10" : "border-border"
+                  }`}
+                >
+                  <RadioGroupItem id="layout-adaptive" value="adaptive" className="mt-0.5" />
+                  <span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      <Expand className="size-4" /> ปรับช่องตามรูป
+                    </span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      คงโครง Template และขยายความสูงของช่องตามสัดส่วนรูป
+                    </span>
+                  </span>
+                </Label>
+                <Label
+                  htmlFor="layout-contain"
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors ${
+                    layoutMode === "contain" ? "border-primary bg-primary/10" : "border-border"
+                  }`}
+                >
+                  <RadioGroupItem id="layout-contain" value="contain" className="mt-0.5" />
+                  <span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      <Minimize2 className="size-4" /> ย่อรูปให้พอดีช่อง
+                    </span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      คงขนาดช่องเดิมและแสดงภาพครบโดยไม่ตัดขอบ
+                    </span>
+                  </span>
+                </Label>
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground">
+                ไฟล์ที่ Export จะเป็นสี่เหลี่ยมจัตุรัส และพื้นที่ว่างจะเป็นสีดำ
+              </p>
+            </div>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label className="text-xs">ช่องไฟระหว่างรูป</Label>
