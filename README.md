@@ -27,9 +27,10 @@ npm run dev
 
 ## GitHub Pages
 
-The `codex/github-pages` branch builds a client-only TanStack Start shell and
-deploys it to GitHub Pages. The GitHub Pages build uses the repository base path
-`/slice-and-stride/`; normal Lovable builds continue to use `/`.
+The `codex/github-pages` branch builds a client-only TanStack Start shell with
+`vite.github-pages.config.ts` and deploys `dist/client` to GitHub Pages. This
+static build intentionally excludes Nitro. It uses the repository base path
+`/slice-and-stride/`, while normal Lovable builds continue to use `/`.
 
 To enable the deployment, open **Settings → Pages** in GitHub and set
 **Build and deployment → Source** to **GitHub Actions**. A push to the
