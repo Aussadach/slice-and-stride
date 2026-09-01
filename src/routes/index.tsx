@@ -14,6 +14,8 @@ import {
   renderSlices,
   type Slice,
 } from "@/lib/split-image";
+import { CollageStudio } from "@/components/CollageStudio";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
