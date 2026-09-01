@@ -302,7 +302,20 @@ function SplitFit() {
           </div>
         </section>
       )}
+
+      {slices.length > 1 && img && (
+        <CollageStudio
+          fileName={fileName}
+          pieces={slices.map((s) => ({
+            id: String(s.index),
+            url: s.url,
+            width: img.naturalWidth,
+            height: s.height,
+          }))}
+        />
+      )}
     </main>
+
   );
 }
 
