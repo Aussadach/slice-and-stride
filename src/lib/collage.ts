@@ -119,6 +119,57 @@ export const templates: Template[] = [
       { x: 2, y: 3, w: 2, h: 1 },
     ],
   },
+  {
+    id: "bento-17",
+    name: "Bento 17",
+    cols: 6,
+    rows: 6,
+    cells: [
+      { x: 0, y: 0, w: 2, h: 2 },
+      { x: 2, y: 0, w: 2, h: 1 },
+      { x: 4, y: 0, w: 1, h: 1 },
+      { x: 5, y: 0, w: 1, h: 2 },
+      { x: 2, y: 1, w: 1, h: 1 },
+      { x: 3, y: 1, w: 2, h: 1 },
+      { x: 0, y: 2, w: 1, h: 2 },
+      { x: 1, y: 2, w: 2, h: 1 },
+      { x: 3, y: 2, w: 3, h: 2 },
+      { x: 1, y: 3, w: 1, h: 1 },
+      { x: 2, y: 3, w: 1, h: 1 },
+      { x: 0, y: 4, w: 2, h: 2 },
+      { x: 2, y: 4, w: 2, h: 1 },
+      { x: 4, y: 4, w: 1, h: 1 },
+      { x: 5, y: 4, w: 1, h: 2 },
+      { x: 2, y: 5, w: 1, h: 1 },
+      { x: 3, y: 5, w: 2, h: 1 },
+    ],
+  },
+  {
+    id: "bento-18",
+    name: "Bento 18",
+    cols: 6,
+    rows: 6,
+    cells: [
+      { x: 0, y: 0, w: 2, h: 2 },
+      { x: 2, y: 0, w: 1, h: 1 },
+      { x: 3, y: 0, w: 1, h: 1 },
+      { x: 4, y: 0, w: 1, h: 1 },
+      { x: 5, y: 0, w: 1, h: 2 },
+      { x: 2, y: 1, w: 1, h: 1 },
+      { x: 3, y: 1, w: 2, h: 1 },
+      { x: 0, y: 2, w: 1, h: 2 },
+      { x: 1, y: 2, w: 2, h: 1 },
+      { x: 3, y: 2, w: 3, h: 2 },
+      { x: 1, y: 3, w: 1, h: 1 },
+      { x: 2, y: 3, w: 1, h: 1 },
+      { x: 0, y: 4, w: 2, h: 2 },
+      { x: 2, y: 4, w: 2, h: 1 },
+      { x: 4, y: 4, w: 1, h: 1 },
+      { x: 5, y: 4, w: 1, h: 2 },
+      { x: 2, y: 5, w: 1, h: 1 },
+      { x: 3, y: 5, w: 2, h: 1 },
+    ],
+  },
 ];
 
 export type Piece = { id: string; width: number; height: number; url: string };
@@ -129,7 +180,7 @@ export type Piece = { id: string; width: number; height: number; url: string };
  * holding piece ids (or null when unused).
  */
 export function autoAssign(template: Template, pieces: Piece[]): (string | null)[] {
-  const cellAspect = (c: Cell) => (c.w * template.rows) / (c.h * template.cols);
+  const cellAspect = (c: Cell) => c.w / c.h;
   const cells = template.cells.map((c, i) => ({ i, a: cellAspect(c), area: c.w * c.h }));
   const items = pieces.map((p) => ({ id: p.id, a: p.width / p.height }));
 
