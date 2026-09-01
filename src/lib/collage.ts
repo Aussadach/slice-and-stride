@@ -8,6 +8,38 @@ export type Template = {
   cells: Cell[];
 };
 
+/** Builds a rectangular grid while replacing covered unit cells with merged cells. */
+export function buildCustomCells(cols: number, rows: number, merges: Cell[]): Cell[] {
+  const validMerges = merges.filter(
+    (cell) => cell.x + cell.w <= cols && cell.y + cell.h <= rows,
+  );
+  const covered = new Set<string>();
+  validMerges.forEach((cell) => {
+    for (let y = cell.y; y < cell.y + cell.h; y++) {
+      for (let x = cell.x; x < cell.x + cell.w; x++) covered.add(`${x}:${y}`);
+    }
+  });
+  const cells = [...validMerges];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (!covered.has(`${x}:${y}`)) cells.push({ x, y, w: 1, h: 1 });
+    }
+  }
+  return cells.sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+/** Returns the merged rectangle only when the selected cells completely fill it. */
+export function getMergeBounds(cells: Cell[]): Cell | null {
+  if (cells.length < 2) return null;
+  const x = Math.min(...cells.map((cell) => cell.x));
+  const y = Math.min(...cells.map((cell) => cell.y));
+  const right = Math.max(...cells.map((cell) => cell.x + cell.w));
+  const bottom = Math.max(...cells.map((cell) => cell.y + cell.h));
+  const area = cells.reduce((sum, cell) => sum + cell.w * cell.h, 0);
+  if (area !== (right - x) * (bottom - y)) return null;
+  return { x, y, w: right - x, h: bottom - y };
+}
+
 /** Collage layouts described on a simple grid (units, not pixels). */
 export const templates: Template[] = [
   {
@@ -112,18 +144,6 @@ export const templates: Template[] = [
     })),
   },
   {
-    id: "custom-grid",
-    name: "Custom grid",
-    cols: 4,
-    rows: 4,
-    cells: Array.from({ length: 16 }, (_, i) => ({
-      x: i % 4,
-      y: Math.floor(i / 4),
-      w: 1,
-      h: 1,
-    })),
-  },
-  {
     id: "stack",
     name: "Stack (แนวยาว)",
     cols: 1,
@@ -193,6 +213,18 @@ export const templates: Template[] = [
       { x: 2, y: 5, w: 1, h: 1 },
       { x: 3, y: 5, w: 2, h: 1 },
     ],
+  },
+  {
+    id: "custom-grid",
+    name: "Custom Grid",
+    cols: 4,
+    rows: 4,
+    cells: Array.from({ length: 16 }, (_, i) => ({
+      x: i % 4,
+      y: Math.floor(i / 4),
+      w: 1,
+      h: 1,
+    })),
   },
 ];
 
