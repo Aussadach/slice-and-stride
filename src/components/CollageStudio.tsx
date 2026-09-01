@@ -155,8 +155,8 @@ export function CollageStudio({
         <LayoutTemplate className="size-5 text-primary" /> รวมเป็น Collage
       </h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        เลือก Template แล้วสลับตำแหน่งได้เอง (คลิกช่องแรก → คลิกช่องที่จะสลับ) ระบบวางให้ก่อนตาม
-        สัดส่วนของแต่ละรูป
+        เลือก Template แล้วสลับตำแหน่งได้เอง (คลิกช่องแรก → คลิกช่องที่จะสลับ)
+        ระบบวางชิ้นงานจากแถวบนตามลำดับที่ตัดรูป
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">

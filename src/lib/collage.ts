@@ -100,6 +100,18 @@ export const templates: Template[] = [
     })),
   },
   {
+    id: "grid-5x5",
+    name: "Grid 5×5",
+    cols: 5,
+    rows: 5,
+    cells: Array.from({ length: 25 }, (_, i) => ({
+      x: i % 5,
+      y: Math.floor(i / 5),
+      w: 1,
+      h: 1,
+    })),
+  },
+  {
     id: "stack",
     name: "Stack (แนวยาว)",
     cols: 1,
@@ -174,34 +186,15 @@ export const templates: Template[] = [
 
 export type Piece = { id: string; width: number; height: number; url: string };
 
-/**
- * Assigns pieces to cells so that each piece lands in the cell whose aspect
- * ratio is closest to its own. Returns an array parallel to template.cells
- * holding piece ids (or null when unused).
- */
+/** Assigns pieces in cut order, filling cells from top-left to bottom-right. */
 export function autoAssign(template: Template, pieces: Piece[]): (string | null)[] {
-  const cellAspect = (c: Cell) => c.w / c.h;
-  const cells = template.cells.map((c, i) => ({ i, a: cellAspect(c), area: c.w * c.h }));
-  const items = pieces.map((p) => ({ id: p.id, a: p.width / p.height }));
-
-  // Big cells first so wide/tall hero pieces get the prominent slots.
-  const order = [...cells].sort((a, b) => b.area - a.area);
-  const pool = [...items];
   const out: (string | null)[] = template.cells.map(() => null);
-
-  for (const cell of order) {
-    if (!pool.length) break;
-    let best = 0;
-    let bestScore = Infinity;
-    pool.forEach((p, idx) => {
-      const score = Math.abs(Math.log(p.a / cell.a));
-      if (score < bestScore) {
-        bestScore = score;
-        best = idx;
-      }
-    });
-    out[cell.i] = pool.splice(best, 1)[0]!.id;
-  }
+  const order = template.cells
+    .map((cell, index) => ({ cell, index }))
+    .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x);
+  order.slice(0, pieces.length).forEach(({ index }, pieceIndex) => {
+    out[index] = pieces[pieceIndex]!.id;
+  });
   return out;
 }
 
@@ -354,7 +347,7 @@ export async function renderCollage(
     roundRect(ctx, x, y, w, h, radius);
     ctx.clip();
     const piece = id ? byId.get(id) : undefined;
-    ctx.fillStyle = piece ? "#000000" : "rgba(255,255,255,0.04)";
+    ctx.fillStyle = "#000000";
     ctx.fillRect(x, y, w, h);
     if (piece) {
       const img = await loadImage(piece.url);
